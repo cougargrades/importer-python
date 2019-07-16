@@ -1,4 +1,4 @@
-# importer
+# @cougargrades/importer
 Pre-processes provided CSV files for usage in production databases
 
 ## Demo
@@ -8,6 +8,7 @@ Pre-processes provided CSV files for usage in production databases
 - Docker
 - Grade data:
     - in CSV format with the schema seen in `sample/sample.csv`
+- 166MB free of disk space for temporary Docker images
 
 ## Running
 - `cd importer/`
