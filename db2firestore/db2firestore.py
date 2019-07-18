@@ -68,15 +68,15 @@ for i in tqdm(range(row_count)):
     if (i - args.offset) > args.limit:
         tqdm.write(f'Number of rows processed has reached the limit of {args.limit}')
         break
+    row = c.fetchone() # needed to progress
     if i < args.offset:
         if i == 0:
             tqdm.write(f'Skipping up to {args.offset}')
-        continue
-    row = c.fetchone()
-    doc_ref = records.document(str(row["FIRESTORE_KEY"]))
-    doc_ref.set(row)
-    #tqdm.write(f'{row["ID"]}')
-    #time.sleep(1) # 1 second
-
+        time.sleep(1/100) # seconds
+    if i >= args.offset:
+        doc_ref = records.document(str(row["FIRESTORE_KEY"]))
+        doc_ref.set(row)
+        
+print('loop broken')
 
 exit()
