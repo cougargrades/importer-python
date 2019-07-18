@@ -72,7 +72,7 @@ for i in tqdm(range(row_count)):
     if i < args.offset:
         if i == 0:
             tqdm.write(f'Skipping up to {args.offset}')
-        time.sleep(1/100) # seconds
+        time.sleep(1/200) # seconds
     if i >= args.offset:
         doc_ref = records.document(str(row["FIRESTORE_KEY"]))
         doc_ref.set(row)
