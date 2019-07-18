@@ -72,11 +72,13 @@ for i in tqdm(range(row_count)):
     if i < args.offset:
         if i == 0:
             tqdm.write(f'Skipping up to {args.offset}')
-        time.sleep(1/200) # seconds
+        # skipped operations are done at 1/200th of a second 
+        # because 0 delay breaks tqdm (sometimes) for some reason
+        time.sleep(1/200)
     if i >= args.offset:
+        # uses document.set instead of collection.add to prevent duplicates
         doc_ref = records.document(str(row["FIRESTORE_KEY"]))
         doc_ref.set(row)
         
-print('loop broken')
-
+print('Firebase import completed.')
 exit()
