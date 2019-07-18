@@ -1,0 +1,1 @@
+`FIREBASE_ACCOUNT_KEY`: https://firebase.google.com/docs/admin/setup?authuser=1#initialize_the_sdk
