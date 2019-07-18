@@ -7,6 +7,7 @@ import sqlite3
 import argparse
 import time
 from tqdm import tqdm
+from halo import Halo
 
 import firebase_admin
 from firebase_admin import credentials
@@ -21,6 +22,8 @@ parser.add_argument('--offset', dest='offset', default=0, type=int,
                     help='Number of SQLite entries to skip before writing them to Firestore. Useful for preventing extra billing charges.')
 parser.add_argument('--limit', dest='limit', default=float('inf'), type=int, 
                     help='Maximum number of SQLite entries to write to Firestore, quitting early if necessary. Useful for preventing extra billing charges.')
+parser.add_argument('--delete', dest='delete', action='store_true',
+                    help='When enabled, Firestore documents that are NOT rows in the database will be deleted.')
 
 args = parser.parse_args()
 print(args)
@@ -58,6 +61,30 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 records = db.collection(u'records')
+
+if args.delete:
+    spinner = Halo(text=f'Fetching rows from Firestore ...', spinner='dots')
+    spinner.start()
+    collectionRef = records.stream()
+    docs = [x for x in collectionRef]
+    spinner.succeed(text=f'Rows fetched')
+
+    spinner.text = f'Deleting rows from Firestore ...'
+    spinner.start()
+    i = 0
+    for doc in docs:
+        spinner.text = f'Deleting rows from Firestore (doc # {i} of ???)...'
+        # doc.id
+        # print(doc.id)
+        c.execute('SELECT FIRESTORE_KEY FROM records WHERE FIRESTORE_KEY=?', tuple([str(doc.id)]))
+        if len(c.fetchall()) == 0:
+            # document exists in Firestore, but not locally
+            doc.reference.delete()
+            spinner.stop_and_persist(symbol='🗑'.encode('utf-8'), text=f'Deleted {doc.id}')
+            spinner.start(text=f'Deleting rows from Firestore (doc # {i} of ???)...', spinner='dots')
+        i += 1
+    spinner.succeed()
+    exit()
 
 # iterate over every row
 c.execute('SELECT * FROM records;')
