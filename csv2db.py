@@ -148,6 +148,12 @@ id_num = 1
 with tqdm(total=ROW_ESTIMATE, unit="rows") as t:
     while row != None:
         tup = list(row)
+
+        # clean up whitespace
+        for i in range(len(tup)):
+            if type(tup[i]) is str:
+                tup[i] = tup[i].strip()
+
         # insert ID, TERM_CODE, and GROUP_CODE
         tup = [id_num] + tup + [term_code(row[0]), group_code(row[0],row[1],row[2],row[5],row[6])] + [f'{group_code(row[0],row[1],row[2],row[5],row[6])}~{row[3]}']
 
