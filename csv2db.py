@@ -3,6 +3,7 @@ import sys
 import sqlite3
 import csv
 import os
+import argparse
 # dependencies for pretty printing
 from tqdm import tqdm
 from halo import Halo
@@ -21,15 +22,19 @@ def season_code(season):
 def group_code(term, subject, catalog_number, last, first):
     return f'{term_code(term)}-{subject}{catalog_number}_{last.replace(" ","")}{first.replace(" ","")}'
 
-if len(sys.argv) < 2:
-    print(f'Usage: {sys.argv[0]} <csvfile> [..csvfile]')
-    exit(0)
+parser = argparse.ArgumentParser(description='Pre-process CSV grade data into a production-ready database format.')
+parser.add_argument('csvfiles', metavar='grades.csv', type=str, nargs='+',
+                    help='A set of CSV files to source data from')
+parser.add_argument('--out', dest='outfile', default='records.db',
+                    help='SQLite db file to create')
 
-if os.path.exists('records.db'):
-    os.remove('records.db')
+args = parser.parse_args()
 
-print(f'Creating records.db...')
-conn = sqlite3.connect('records.db')
+if os.path.exists(args.outfile):
+    os.remove(args.outfile)
+
+print(f'Creating {args.outfile}...')
+conn = sqlite3.connect(args.outfile)
 c = conn.cursor()
 
 # Create table
@@ -55,16 +60,15 @@ conn.commit()
 spinner = Halo(text='Estimating number of rows...', spinner='dots')
 spinner.start()
 ROW_ESTIMATE = 0
-for arg in sys.argv:
-    if arg != sys.argv[0]:
-        n = 0
-        try:
-            with open(arg, 'r') as f:
-                for line in f:
-                    n += 1
-        except Exception as err:
-            print(f'Failed to estimate rows.\nException: {err}')
-        ROW_ESTIMATE += (n - 1) # dont include header row
+for arg in args.csvfiles:
+    n = 0
+    try:
+        with open(arg, 'r') as f:
+            for line in f:
+                n += 1
+    except Exception as err:
+        print(f'Failed to estimate rows.\nException: {err}')
+    ROW_ESTIMATE += (n - 1) # dont include header row
 spinner.succeed()
 print(f'{ROW_ESTIMATE} rows estimated')
 
@@ -72,24 +76,23 @@ print(f'{ROW_ESTIMATE} rows estimated')
 print('Copying rows from CSV...')
 with tqdm(total=ROW_ESTIMATE, unit="rows") as t:
     # for every file provided
-    for arg in sys.argv:
-        if arg != sys.argv[0]:
-            head, tail = os.path.split(arg)
-            #tqdm.write(f'Reading {tail}...')
-            try:
-                # read the file as a CSV file
-                with open(arg, 'r') as csvfile:
-                    reader = csv.reader(csvfile)
-                    next(reader) # skips header row
-                    # for every row, insert into the database and update the progress bar
-                    for row in reader:
-                        # "Fall 2013",ACCT,4105,1,"PPA Colloquium 1",Newman,"Michael Ray",,,,,,,
-                        c.execute(f'INSERT INTO records VALUES {str(tuple(row))}') # tuples happen to be SQL syntax: `("hello", 2, false)` 
-                        t.update()
-                    # after every file, commit to the db before continuing to the next file
-                    conn.commit()
-            except Exception as err:
-                tqdm.write(f'Failed to read {short_arg} as a CSV file.\nException: {err}')
+    for arg in args.csvfiles:
+        head, tail = os.path.split(arg)
+        #tqdm.write(f'Reading {tail}...')
+        try:
+            # read the file as a CSV file
+            with open(arg, 'r') as csvfile:
+                reader = csv.reader(csvfile)
+                next(reader) # skips header row
+                # for every row, insert into the database and update the progress bar
+                for row in reader:
+                    # "Fall 2013",ACCT,4105,1,"PPA Colloquium 1",Newman,"Michael Ray",,,,,,,
+                    c.execute(f'INSERT INTO records VALUES {str(tuple(row))}') # tuples happen to be SQL syntax: `("hello", 2, false)` 
+                    t.update()
+                # after every file, commit to the db before continuing to the next file
+                conn.commit()
+        except Exception as err:
+            tqdm.write(f'Failed to read {short_arg} as a CSV file.\nException: {err}')
 
 conn.commit()
 conn.close()
@@ -98,7 +101,7 @@ print('Computing extra columns...')
 spinner = Halo(text='Computing COUNT() and AVG()...', spinner='dots')
 spinner.start()
 
-conn = sqlite3.connect('records.db')
+conn = sqlite3.connect(args.outfile)
 cread = conn.cursor()
 cwrite = conn.cursor()
 

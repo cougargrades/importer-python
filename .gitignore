@@ -26,4 +26,5 @@ _site/
 
 env.json
 
-*.firebaseadminsdk.json
+*firebaseadminsdk.json
+firebaseadminsdk.json

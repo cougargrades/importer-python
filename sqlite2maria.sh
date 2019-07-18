@@ -1,16 +1,16 @@
 #!/bin/bash
-cd /opt/importer/
+#cd /opt/importer/
 
 export TERM="xterm-256color"
-source "$(pwd)/spinner.sh"
+#source "$(pwd)/spinner.sh"
 
 wget --quiet https://raw.githubusercontent.com/au5ton/SQLite-to-MariaDB-MySQL-perl-script/master/sqlite-to-mariadb.pl
 chmod +x sqlite-to-mariadb.pl
 
-start_spinner "[$1] .db ==> .sqlite"
+#start_spinner "[$1] .db ==> .sqlite"
 sqlite3 records.db -cmd ".output records.sqlite.sql" ".dump"
-stop_spinner $?
-start_spinner "[$1] .sqlite ==> .mariadb"
+#stop_spinner $?
+#start_spinner "[$1] .sqlite ==> .mariadb"
 perl sqlite-to-mariadb.pl records.sqlite.sql > records.sql
 # replace "records" with records in table creation line
 python << END
@@ -37,4 +37,4 @@ SET unique_checks=1;
 SET foreign_key_checks=1;
 " >> records.sql
 
-stop_spinner $?
+#stop_spinner $?

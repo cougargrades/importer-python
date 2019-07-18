@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS records (
-    ID int primary key,
+    ID int unsigned not null primary key unique,
     TERM text,
     DEPT text,
     CATALOG_NBR text,
@@ -17,12 +17,10 @@ CREATE TABLE IF NOT EXISTS records (
     PROF_COUNT smallint,
     PROF_AVG real,
     TERM_CODE int,
-    GROUP_CODE text
+    GROUP_CODE text,
+    FIRESTORE_KEY text
     );
-INSERT INTO records VALUES(1,'Fall 2013','ACCT',4105,1,'PPA Colloquium 1','Newman','Michael Ray',NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,NULL,201303,'201303-ACCT4105_NewmanMichaelRay');
-INSERT INTO records VALUES(2,'Fall 2013','ACCT',4106,1,'PPA Colloquium 2','Newman','Michael Ray',NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,NULL,201303,'201303-ACCT4106_NewmanMichaelRay');
-INSERT INTO records VALUES(3,'Fall 2013','ACCT',4107,1,'Oil and Gas Acct Colloquium','Newman','Michael Ray',NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,NULL,201303,'201303-ACCT4107_NewmanMichaelRay');
-INSERT INTO records VALUES(4,'Fall 2013','ACCT',4396,1,'Accounting Internship','Newman','Michael Ray',NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,NULL,201303,'201303-ACCT4396_NewmanMichaelRay');
-INSERT INTO records VALUES(5,'Fall 2013','ACCT',7105,1,'MS/Accountancy Colloquium','Newman','Michael Ray',NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,NULL,201303,'201303-ACCT7105_NewmanMichaelRay');
-INSERT INTO records VALUES(6,'Fall 2013','ACCT',7396,1,'Accounting Internship','Newman','Michael Ray',NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,NULL,201303,'201303-ACCT7396_NewmanMichaelRay');
-INSERT INTO records VALUES(7,'Fall 2013','ACCT',8999,2,'Doctoral Dissertation','Lobo','Gerald',NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,NULL,201303,'201303-ACCT8999_LoboGerald');
+INSERT INTO records VALUES(1,'Spring 2019','AAS','2320',1,'Intro To African American Stdy','Smith','Marlon Antoine',7,12,7,4,6,0,2.3140000000000000568,1,2.3140000000000000568,201901,'201901-AAS2320_SmithMarlonAntoine','201901-AAS2320_SmithMarlonAntoine~1');
+INSERT INTO records VALUES(2,'Spring 2019','AAS','2320',2,'Intro To African American Stdy','Horne','Gerald',NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,NULL,201901,'201901-AAS2320_HorneGerald','201901-AAS2320_HorneGerald~2');
+INSERT INTO records VALUES(3,'Spring 2019','AAS','2320',3,'Intro To African American Stdy','Walker','Alan',19,10,6,0,5,3,2.9249999999999998223,1,2.9249999999999998223,201901,'201901-AAS2320_WalkerAlan','201901-AAS2320_WalkerAlan~3');
+INSERT INTO records VALUES(4,'Spring 2019','AAS','2320',4,'Intro To African American Stdy','Thompson','Kevin Bernard',25,6,1,2,0,1,3.5200000000000000177,2,3.6429999999999997939,201901,'201901-AAS2320_ThompsonKevinBernard','201901-AAS2320_ThompsonKevinBernard~4');
