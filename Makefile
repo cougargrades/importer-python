@@ -7,7 +7,7 @@ default: importer
 importer: FORCE
 	sudo docker rm --force $$(docker ps -q -f 'ancestor=au5ton/cougar-grades.importer') | true
 	sudo docker rmi --force au5ton/cougar-grades.importer | true
-	sudo docker build -t au5ton/cougar-grades.importer importer/
+	sudo docker build -t au5ton/cougar-grades.importer csv2db/
 
 #start:
 #	sudo docker-compose up --build -d

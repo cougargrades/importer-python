@@ -1,7 +1,7 @@
 #!/bin/bash
 
 cd "$(dirname "$0")"
-source "importer/spinner.sh"
+source "csv2db/spinner.sh"
 
 print_usage()
 {

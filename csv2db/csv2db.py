@@ -121,7 +121,8 @@ cwrite.execute('''CREATE TABLE records_extra (
     PROF_COUNT smallint,
     PROF_AVG real,
     TERM_CODE int,
-    GROUP_CODE text
+    GROUP_CODE text,
+    FIRESTORE_KEY text
     )''')
 conn.commit()
 
@@ -145,9 +146,9 @@ with tqdm(total=ROW_ESTIMATE, unit="rows") as t:
     while row != None:
         tup = list(row)
         # insert ID, TERM_CODE, and GROUP_CODE
-        tup = [id_num] + tup + [term_code(row[0]), group_code(row[0],row[1],row[2],row[5],row[6])]
+        tup = [id_num] + tup + [term_code(row[0]), group_code(row[0],row[1],row[2],row[5],row[6])] + [f'{group_code(row[0],row[1],row[2],row[5],row[6])}~{row[3]}']
 
-        # (822, 'Fall 2013', 'GEOL', 8398, 27, 'Doctoral Research', 'Han', 'De-Hua', '', '', '', '', '', '', '', 1, 0.0, 201303, '201303-GEOL8398_HanDe-Hua')
+        # (822, 'Fall 2013', 'GEOL', 8398, 27, 'Doctoral Research', 'Han', 'De-Hua', '', '', '', '', '', '', '', 1, 0.0, 201303, '201303-GEOL8398_HanDe-Hua', FIRESTORE_KEY)
         #  0    1            2       3     4   5                    6      7         8   9   10  11  12  13  14  15 16   17      18
 
         # if grade not supplied, set grade-related cells to None
@@ -156,7 +157,7 @@ with tqdm(total=ROW_ESTIMATE, unit="rows") as t:
                 tup[i] = None
             tup[16] = None
 
-        cwrite.execute(f'INSERT INTO records_extra VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tuple(tup))
+        cwrite.execute(f'INSERT INTO records_extra VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tuple(tup))
         # if id_num % 2000 == 0:
         #    tqdm.write(f'Processed row {id_num}')
         id_num += 1
