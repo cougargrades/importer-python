@@ -98,7 +98,7 @@ conn.commit()
 conn.close()
 
 print('Computing extra columns...')
-spinner = Halo(text='Computing COUNT() and AVG()...', spinner='dots')
+spinner = Halo(text='Computing COUNT(), AVG(), MIN(), and MAX() ...', spinner='dots')
 spinner.start()
 
 conn = sqlite3.connect(args.outfile)
@@ -123,6 +123,8 @@ cwrite.execute('''CREATE TABLE records_extra (
     AVG_GPA real,
     PROF_COUNT smallint,
     PROF_AVG real,
+    PROF_MIN real,
+    PROF_MAX real,
     TERM_CODE int,
     GROUP_CODE text,
     FIRESTORE_KEY text
@@ -134,15 +136,15 @@ cread.execute('''
 SELECT 
 records.TERM, records.DEPT, records.CATALOG_NBR, records.CLASS_SECTION, records.COURSE_DESCR, records.INSTR_LAST_NAME, records.INSTR_FIRST_NAME, 
 records.A, records.B, records.C, records.D, records.F, records.Q, records.AVG_GPA,
-t2.PROF_COUNT, t2.PROF_AVG FROM records
+t2.PROF_COUNT, t2.PROF_AVG, t2.PROF_MIN, t2.PROF_MAX FROM records
 
-LEFT JOIN(SELECT COUNT(records.AVG_GPA) AS PROF_COUNT, AVG(records.AVG_GPA) AS PROF_AVG, records.TERM, records.DEPT, records.CATALOG_NBR, records.INSTR_LAST_NAME, records.INSTR_FIRST_NAME FROM records GROUP BY TERM, DEPT, CATALOG_NBR, INSTR_LAST_NAME, INSTR_FIRST_NAME) t2
+LEFT JOIN(SELECT COUNT(records.AVG_GPA) AS PROF_COUNT, AVG(records.AVG_GPA) AS PROF_AVG, MIN(records.AVG_GPA) AS PROF_MIN, MAX(records.AVG_GPA) AS PROF_MAX, records.TERM, records.DEPT, records.CATALOG_NBR, records.INSTR_LAST_NAME, records.INSTR_FIRST_NAME FROM records GROUP BY TERM, DEPT, CATALOG_NBR, INSTR_LAST_NAME, INSTR_FIRST_NAME) t2
 
 ON records.TERM = t2.TERM AND records.DEPT = t2.DEPT AND records.CATALOG_NBR = t2.CATALOG_NBR AND records.INSTR_LAST_NAME = t2.INSTR_LAST_NAME AND records.INSTR_FIRST_NAME = t2.INSTR_FIRST_NAME
 ''')
 spinner.succeed()
 
-print('Creating extra table from copied table...', end="")
+print('Creating extra table from copied table...')
 row = cread.fetchone()
 id_num = 1
 with tqdm(total=ROW_ESTIMATE, unit="rows") as t:
@@ -166,7 +168,7 @@ with tqdm(total=ROW_ESTIMATE, unit="rows") as t:
                 tup[i] = None
             tup[16] = None
 
-        cwrite.execute(f'INSERT INTO records_extra VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tuple(tup))
+        cwrite.execute(f'INSERT INTO records_extra VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tuple(tup))
         # if id_num % 2000 == 0:
         #    tqdm.write(f'Processed row {id_num}')
         id_num += 1
