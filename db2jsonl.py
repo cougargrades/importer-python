@@ -16,8 +16,8 @@ parser.add_argument('--out', dest='folder', default=None,
                     help='Folder to store .jsonl files in')
 
 args = parser.parse_args()
-#print(args)
 
+# check arguments
 if not os.path.isfile(args.dbfile):
     print(f'{args.dbfile} is not a file.')
     exit(1)
@@ -49,15 +49,20 @@ total_rows = c.fetchone()["COUNT(*)"]
 
 print(f'{len(unique_courses)} distinct courses and {total_rows} total rows in {args.dbfile}')
 
+# assign an outfile file
 for row in unique_courses:
     row["outfile"] = f'{row["DEPT"]} {row["CATALOG_NBR"]}.jsonl'
 
+# progress bar
 with tqdm(total=total_rows, unit="rows") as t:
-    i = 1
+    i = 1 # used in the progress bar description to indicate what course is being processed
+    # for every unique course ()
     for row in unique_courses:
         t.set_description(f'[{i}/{len(unique_courses)}] {row["outfile"]}')
+        # get all sections
         c.execute('SELECT * FROM records WHERE DEPT=? AND CATALOG_NBR=?', (row["DEPT"], row["CATALOG_NBR"]))
         sections = c.fetchall()
+        # the first line is a header
         meta = {
             "department": row["DEPT"],
             "catalogNumber": row["CATALOG_NBR"],
@@ -67,9 +72,13 @@ with tqdm(total=total_rows, unit="rows") as t:
             "cumulativeGPA": None,
             "sectionCount": 0
         }
+        # write the file
         with open(os.path.join(args.folder, row["outfile"]), 'w') as f:
+            # write the header line
             f.write(f'{json.dumps(meta)}\n')
+            # for every section
             for sec in sections:
+                # write JSON in the new schema
                 f.write(f'''{json.dumps({
                     "term": sec["TERM_CODE"],
                     "termString": sec["TERM"],
@@ -89,6 +98,5 @@ with tqdm(total=total_rows, unit="rows") as t:
                     "instructorTermGPA": sec["PROF_AVG"],
                     "instructorTermSectionsTaught": sec["PROF_COUNT"]
                 })}\n''')
-                t.update()
-        i += 1
-    #print(sections[0]["COURSE_DESCR"])
+                t.update() # update progress bar
+        i += 1 # increment the course counter
