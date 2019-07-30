@@ -22,7 +22,7 @@ def season_code(season):
 def group_code(term, subject, catalog_number, last, first):
     return f'{term_code(term)}-{subject}{catalog_number}_{last.replace(" ","")}{first.replace(" ","")}'
 
-parser = argparse.ArgumentParser(description='Pre-process CSV grade data into a production-ready database format.')
+parser = argparse.ArgumentParser(description='Pre-process CSV grade data into an intermediary database format.')
 parser.add_argument('csvfiles', metavar='grades.csv', type=str, nargs='+',
                     help='A set of CSV files to source data from')
 parser.add_argument('--out', dest='outfile', default='records.db',

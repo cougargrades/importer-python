@@ -21,7 +21,7 @@ Pre-processes provided CSV files for usage in production databases
 ```
 usage: csv2db.py [-h] [--out OUTFILE] grades.csv [grades.csv ...]
 
-Pre-process CSV grade data into a production-ready database format.
+Pre-process CSV grade data into a intermediary database format.
 
 positional arguments:
   grades.csv     A set of CSV files to source data from
