@@ -1,5 +1,11 @@
 # @cougargrades/importer
-Pre-processes provided CSV files for usage in production databases
+Pre-processes provided CSV files for usage in production databases.
+
+## Goals
+- Extrapolate inferenced data from CSV files
+- Reformat SQL data to be NoSQL friendly
+- Import NoSQL data into [Firestore](https://cloud.google.com/firestore/)
+- Use in resulting data in production
 
 ## Dependencies
 - Python 3.6+
@@ -12,7 +18,8 @@ Pre-processes provided CSV files for usage in production databases
 - `pipenv install`
 - `pipenv shell`
 - `$ ./csv2db.py foia/*.csv --out records.db`
-- `$ ./db2firestore.py records.db --key firebaseadminsdk.json`
+- `$ ./db2jsonl.py records.db --out catalog/`
+- `$ ./jsonl2firestore.py --key firebaseadminsdk.json catalog/*.jsonl`
 
 ## Demo
 [![asciicast](https://asciinema.org/a/jljnXuhwvhu4phG6gwg6wG1YE.svg)](https://asciinema.org/a/jljnXuhwvhu4phG6gwg6wG1YE)
