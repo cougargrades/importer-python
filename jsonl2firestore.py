@@ -79,6 +79,13 @@ with tqdm(total=total_rows, unit="rows") as t:
                     courseRef = course
                     sections = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}').collection('sections')
                 else:
+                    # check for existence of section already (https://stackoverflow.com/a/3114640)
+                    secQuery = sections.where('term','==',obj["term"]).where('sectionNumber','==',obj["sectionNumber"])
+                    if any(True for _ in secQuery.stream()):
+                        t.write(f'{courseRef.id}#{obj["term"]}-{obj["sectionNumber"]} already exists')
+                        t.update()
+                        continue
+
                     # block for populating sections subcollection
                     # make reference for the instructor
                     instructorRef = instructors.document(f'{obj["instructorLastName"]}, {obj["instructorFirstName"]}')
