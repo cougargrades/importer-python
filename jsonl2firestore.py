@@ -52,15 +52,24 @@ catalog = db.collection(u'catalog')
 
 with tqdm(total=total_rows, unit="rows") as t:
     i = 1
+    # for every file (each file is a course)
     for arg in args.jsonlfiles:
+        # open file
         with open(arg, 'r') as f:
             j = 0
+            # declare variable
             sections = {}
             for line in f:
+                # load json line as Dict
                 obj = json.loads(line)
                 if j == 0:
+                    # update progress bar
                     t.set_description(f'[{i}/{len(args.jsonlfiles)}] {obj["department"]} {obj["catalogNumber"]}')
-                    catalog.add(obj, document_id=f'{obj["department"]} {obj["catalogNumber"]}')
+                    # get course reference
+                    course = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}')
+                    # if course doesn't exist, set it to the default things
+                    if not course.get().exists:
+                        course.set(obj)
                     sections = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}').collection('sections')
                 else:
                     sections.add(obj)

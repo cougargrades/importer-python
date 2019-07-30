@@ -70,7 +70,7 @@ with tqdm(total=total_rows, unit="rows") as t:
             "cumulativeGPAmin": None,
             "cumulativeGPAmax": None,
             "cumulativeGPA": None,
-            "sectionCount": 0
+            "sectionCount": 0 # leave at zero for automatic incrementation in Cloud Functions
         }
         # write the file
         with open(os.path.join(args.folder, row["outfile"]), 'w') as f:
@@ -84,7 +84,7 @@ with tqdm(total=total_rows, unit="rows") as t:
                     "termString": sec["TERM"],
                     "sectionNumber": sec["CLASS_SECTION"],
                     "instructorFirstName": sec["INSTR_FIRST_NAME"],
-                    "instructorsLastName": sec["INSTR_LAST_NAME"],
+                    "instructorLastName": sec["INSTR_LAST_NAME"],
                     "semesterGPA": sec["AVG_GPA"],
                     "A": sec["A"],
                     "B": sec["B"],
