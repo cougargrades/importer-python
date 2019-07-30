@@ -12,6 +12,7 @@ from halo import Halo
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+from firebase_admin.firestore import ArrayUnion
 
 parser = argparse.ArgumentParser(description='Import formatted JSONL files into Google Firestore')
 parser.add_argument('jsonlfiles', metavar='COSC 1430.jsonl', type=str, nargs='+',
@@ -49,6 +50,9 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 catalog = db.collection(u'catalog')
+instructors = db.collection(u'instructors')
+
+print(f'📝 Writing {total_rows} records to Firestore.')
 
 with tqdm(total=total_rows, unit="rows") as t:
     i = 1
@@ -59,10 +63,12 @@ with tqdm(total=total_rows, unit="rows") as t:
             j = 0
             # declare variable
             sections = {}
+            courseRef = {}
             for line in f:
                 # load json line as Dict
                 obj = json.loads(line)
                 if j == 0:
+                    # block for creating course document
                     # update progress bar
                     t.set_description(f'[{i}/{len(args.jsonlfiles)}] {obj["department"]} {obj["catalogNumber"]}')
                     # get course reference
@@ -70,9 +76,31 @@ with tqdm(total=total_rows, unit="rows") as t:
                     # if course doesn't exist, set it to the default things
                     if not course.get().exists:
                         course.set(obj)
+                    courseRef = course
                     sections = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}').collection('sections')
                 else:
-                    sections.add(obj)
+                    # block for populating sections subcollection
+                    # make reference for the instructor
+                    instructorRef = instructors.document(f'{obj["instructorLastName"]}, {obj["instructorFirstName"]}')
+                    # save reference to section document
+                    obj["instructor"] = instructorRef
+                    # get the data for this instructor
+                    instructor = instructorRef.get()
+                    if not instructor.exists:
+                        # if he doesn't yet exist, create him
+                        instructorRef.set({
+                            "firstName": obj["instructorFirstName"],
+                            "lastName": obj["instructorLastName"],
+                            "courses": [],
+                            "sections": []
+                        })
+                    # add section to course, save reference to document
+                    secRef = sections.add(obj)[1]
+                    # add course and section to instructor
+                    instructorRef.update({
+                        "courses": ArrayUnion([courseRef]),
+                        "sections": ArrayUnion([secRef])
+                    })
                     t.update()
                 j += 1
         i += 1
