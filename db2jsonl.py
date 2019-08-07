@@ -64,7 +64,7 @@ with open(os.path.join(args.folder, 'catalog.meta', 'meta.json'), 'w') as f:
     f.write(f'{json.dumps(catalog_meta)}')
 spinner.succeed()
 
-print('Writing collection `catalog/` the first time ...')
+print('Writing collection `catalog/` ...')
 
 # assign an outfile file
 for row in unique_courses:
@@ -117,20 +117,14 @@ with tqdm(total=total_rows, unit="rows") as t:
                 dups = list(filter(lambda s: s["TERM_CODE"] == sec["TERM_CODE"] and s["CLASS_SECTION"] == sec["CLASS_SECTION"], sections)) # array of complete sqlite dicts
                 # lamba function counts number of names in a provided list
                 countNames = lambda l, first, last: sum(1 if v["INSTR_FIRST_NAME"] == first and v["INSTR_LAST_NAME"] == last else 0 for v in l)
-                # de-dupe dups
+                # de-dupe dups for instructors that are listed twice for the same section number
                 for j in range(len(dups)-1,0,-1):
                     # if this instructor has multiple records for some reason
                     if(countNames(dups, dups[j]["INSTR_FIRST_NAME"], dups[j]["INSTR_LAST_NAME"]) > 1):
                         dups.pop(j)
-                # notifying the user
-                if(len(dups) > 1):
-                    # https://stackoverflow.com/a/7271523
-                    sqlite_ids = [d["ID"] for d in dups]
-                    t.write(f'{row["DEPT"]} {row["CATALOG_NBR"]}#{sec["TERM_CODE"]}-{sec["CLASS_SECTION"]} has multiple instructors. These SQLite rows were merged: {sqlite_ids}')
-                #t.write(f'{courseRef.id}#{obj["term"]}-{obj["sectionNumber"]} already exists')
                 # for every instructor that taught this exact section
                 for d in dups:
-                    # append a new object to "instructors"
+                    # append a new object to "instructors" property
                     data["instructors"] += [{
                         "firstName": d["INSTR_FIRST_NAME"],
                         "lastName": d["INSTR_LAST_NAME"],
@@ -139,7 +133,9 @@ with tqdm(total=total_rows, unit="rows") as t:
                         "termGPA": d["PROF_AVG"],
                         "termSectionsTaught": d["PROF_COUNT"]
                     }]
-                cache += [data] # append to cache
+                # append to cache
+                cache += [data]
+            # counts the number of exact section instances in a list
             countSections = lambda l, term, secNum: sum(1 if v["term"] == term and v["sectionNumber"] == secNum else 0 for v in l)
             # for every item in cache (traverse backwards because removing items)
             for j in range(len(cache)-1,0,-1):
@@ -147,9 +143,13 @@ with tqdm(total=total_rows, unit="rows") as t:
                 if(countSections(cache, cache[j]["term"], cache[j]["sectionNumber"]) > 1):
                     # remove it
                     cache.pop(j)
+                    # update the progress bar for sections that were removed so that it's not 95% when done
+                    t.update()
             # for every item in cache
             for p in cache:
                 # write to jsonl file
                 f.write(f'''{json.dumps(p)}\n''')
+                # update progress bar
                 t.update()
-        i += 1 # increment the course counter
+        # increment the course counter
+        i += 1
