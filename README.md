@@ -19,7 +19,7 @@ Pre-processes provided CSV files for usage in production databases.
 - `pipenv shell`
 - `$ ./csv2db.py foia/*.csv --out records.db`
 - `$ ./db2jsonl.py records.db --out db/`
-- `$ ./jsonl2firestore.py --key firebaseadminsdk.json --meta db/catalog.meta/meta.json db/catalog/*.jsonl`
+- `$ ./jsonl2firestore.py --key firebaseadminsdk.json --meta db/catalog_meta/meta.json db/catalog/*.jsonl`
 
 ## Demo
 [![asciicast](https://asciinema.org/a/jljnXuhwvhu4phG6gwg6wG1YE.svg)](https://asciinema.org/a/jljnXuhwvhu4phG6gwg6wG1YE)
