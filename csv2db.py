@@ -186,5 +186,32 @@ ALTER TABLE records_extra
 RENAME TO records
 ''')
 conn.commit()
-conn.close()
 print('Done')
+
+
+# compute metadata about database
+print('Computing catalog metadata...', end="")
+c = conn.cursor()
+c.execute('''CREATE TABLE catalog_meta (
+    latestTerm int
+    )''')
+meta = {}
+
+# compute latest term
+c.execute('SELECT MAX(TERM_CODE) FROM records;')
+meta["latestTerm"] = c.fetchall() # [(201901,)]
+meta["latestTerm"] = meta["latestTerm"][0][0]
+c.execute('INSERT INTO catalog_meta VALUES (?)', [ meta["latestTerm"] ])
+conn.commit()
+
+print('Done')
+
+
+
+# vacuum sqlite file
+spinner = Halo(text='Running sqlite VACUUM command...', spinner='dots')
+spinner.start()
+c.execute('VACUUM')
+conn.commit()
+conn.close()
+spinner.succeed()
