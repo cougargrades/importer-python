@@ -59,22 +59,15 @@ instructors = db.collection(u'instructors')
 
 print(f'📝 Writing {total_rows} records to Firestore.')
 
-#batch = db.batch()
-
 with tqdm(total=total_rows, unit="rows") as t:
     i = 1
     # for every file (each file is a course)
     for arg in args.jsonlfiles:
-        # prepare batch for faster uploading
-        # up to 4 operations per iteration, so batch every 100 iterations
-        #if((i-1) % 100):
-            #batch.commit()
-
         # open file
         with open(arg, 'r') as f:
             j = 0
             # declare variable
-            sections = {}
+            sectionsRef = {}
             courseRef = {}
             courseName = None
             for line in f:
@@ -85,18 +78,17 @@ with tqdm(total=total_rows, unit="rows") as t:
                     # update progress bar
                     t.set_description(f'[{i}/{len(args.jsonlfiles)}] {obj["department"]} {obj["catalogNumber"]}')
                     # get course reference
-                    course = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}')
+                    courseRef = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}')
                     # save course name for other part of the code
                     courseName = f'{obj["department"]} {obj["catalogNumber"]}'
                     # if course doesn't exist, set it to the default things
-                    if not course.get().exists:
-                        course.set(obj)
-                    courseRef = course
-                    sections = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}').collection('sections')
+                    if not courseRef.get().exists:
+                        courseRef.set(obj)
+                    sectionsRef = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}').collection('sections')
                 else:
                     # check for existence of section already (https://stackoverflow.com/a/3114640)
-                    #t.write(f'{sections.parent.path} -> {sections.id}')
-                    secQuery = sections.where('term','==',obj["term"]).where('sectionNumber','==',obj["sectionNumber"])
+                    #t.write(f'{sectionsRef.parent.path} -> {sections.id}')
+                    secQuery = sectionsRef.where('term','==',obj["term"]).where('sectionNumber','==',obj["sectionNumber"])
                     if any(True for _ in secQuery.stream()):
                         t.write(f'{courseRef.id}#{obj["term"]}-{obj["sectionNumber"]} already exists')
                         t.update()
@@ -133,7 +125,7 @@ with tqdm(total=total_rows, unit="rows") as t:
                                     "courses_count": Increment(1)
                                 })
                     # add section to course, save reference to document as a variable
-                    secRef = sections.add(obj)[1]
+                    secRef = sectionsRef.add(obj)[1]
                     for item in obj["instructorNames"]:
                         # make reference for the instructor
                         instructorRef = instructors.document(f'{item["lastName"]}, {item["firstName"]}')
