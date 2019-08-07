@@ -13,6 +13,7 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 from firebase_admin.firestore import ArrayUnion
+from firebase_admin.firestore import Increment
 
 parser = argparse.ArgumentParser(description='Import formatted JSONL files into Google Firestore')
 parser.add_argument('jsonlfiles', metavar='COSC 1430.jsonl', type=str, nargs='+',
@@ -58,16 +59,24 @@ instructors = db.collection(u'instructors')
 
 print(f'📝 Writing {total_rows} records to Firestore.')
 
+#batch = db.batch()
+
 with tqdm(total=total_rows, unit="rows") as t:
     i = 1
     # for every file (each file is a course)
     for arg in args.jsonlfiles:
+        # prepare batch for faster uploading
+        # up to 4 operations per iteration, so batch every 100 iterations
+        #if((i-1) % 100):
+            #batch.commit()
+
         # open file
         with open(arg, 'r') as f:
             j = 0
             # declare variable
             sections = {}
             courseRef = {}
+            courseName = None
             for line in f:
                 # load json line as Dict
                 obj = json.loads(line)
@@ -77,6 +86,8 @@ with tqdm(total=total_rows, unit="rows") as t:
                     t.set_description(f'[{i}/{len(args.jsonlfiles)}] {obj["department"]} {obj["catalogNumber"]}')
                     # get course reference
                     course = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}')
+                    # save course name for other part of the code
+                    courseName = f'{obj["department"]} {obj["catalogNumber"]}'
                     # if course doesn't exist, set it to the default things
                     if not course.get().exists:
                         course.set(obj)
@@ -84,6 +95,7 @@ with tqdm(total=total_rows, unit="rows") as t:
                     sections = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}').collection('sections')
                 else:
                     # check for existence of section already (https://stackoverflow.com/a/3114640)
+                    #t.write(f'{sections.parent.path} -> {sections.id}')
                     secQuery = sections.where('term','==',obj["term"]).where('sectionNumber','==',obj["sectionNumber"])
                     if any(True for _ in secQuery.stream()):
                         t.write(f'{courseRef.id}#{obj["term"]}-{obj["sectionNumber"]} already exists')
@@ -91,27 +103,44 @@ with tqdm(total=total_rows, unit="rows") as t:
                         continue
 
                     # block for populating sections subcollection
-                    # make reference for the instructor
-                    instructorRef = instructors.document(f'{obj["instructorLastName"]}, {obj["instructorFirstName"]}')
-                    # save reference to section document
-                    obj["instructor"] = instructorRef
-                    # get the data for this instructor
-                    instructor = instructorRef.get()
-                    if not instructor.exists:
-                        # if he doesn't yet exist, create him
-                        instructorRef.set({
-                            "firstName": obj["instructorFirstName"],
-                            "lastName": obj["instructorLastName"],
-                            "courses": [],
-                            "sections": []
-                        })
-                    # add section to course, save reference to document
+                    obj["instructors"] = []
+                    # for every intructor in the file
+                    for item in obj["instructorNames"]:
+                        # make reference for the instructor
+                        instructorRef = instructors.document(f'{item["lastName"]}, {item["firstName"]}')
+                        # save instructor reference to section document
+                        obj["instructors"] += [ instructorRef ]
+                        # get the data for this instructor
+                        instructorSnap = instructorRef.get()
+                        if not instructorSnap.exists:
+                            # if he doesn't yet exist, create him
+                            instructorRef.set({
+                                "firstName": item["firstName"],
+                                "lastName": item["lastName"],
+                                "courses": [ courseRef ],
+                                "sections": [],
+                                "courses_count": 1,
+                                "sections_count": 0
+                            })
+                        else:
+                            # [DocumentReference, ...] => ["COSC 1430", ...]
+                            my_courses = [item.id for item in instructorSnap.to_dict()["courses"]]
+                            # if the course i'm operating on isn't in listed as a course for this instructor
+                            if(courseName not in my_courses):
+                                # add it and increment the course count with the snapshot we already had to fetch
+                                instructorRef.update({
+                                    "courses": ArrayUnion([courseRef]),
+                                    "courses_count": Increment(1)
+                                })
+                    # add section to course, save reference to document as a variable
                     secRef = sections.add(obj)[1]
-                    # add course and section to instructor
-                    instructorRef.update({
-                        "courses": ArrayUnion([courseRef]),
-                        "sections": ArrayUnion([secRef])
-                    })
+                    for item in obj["instructorNames"]:
+                        # make reference for the instructor
+                        instructorRef = instructors.document(f'{item["lastName"]}, {item["firstName"]}')
+                        instructorRef.update({
+                            "sections": ArrayUnion([secRef]),
+                            "sections_count": Increment(1)
+                        })
                     t.update()
                 j += 1
         i += 1

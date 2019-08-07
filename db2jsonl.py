@@ -110,7 +110,7 @@ with tqdm(total=total_rows, unit="rows") as t:
                     "D": sec["D"],
                     "F": sec["F"],
                     "Q": sec["Q"],
-                    "instructors": []
+                    "instructorNames": []
                 }
                 # check for multiple instructors teaching this section
                 # https://stackoverflow.com/a/25373204
@@ -125,7 +125,7 @@ with tqdm(total=total_rows, unit="rows") as t:
                 # for every instructor that taught this exact section
                 for d in dups:
                     # append a new object to "instructors" property
-                    data["instructors"] += [{
+                    data["instructorNames"] += [{
                         "firstName": d["INSTR_FIRST_NAME"],
                         "lastName": d["INSTR_LAST_NAME"],
                         "termGPAmin": d["PROF_MIN"],
