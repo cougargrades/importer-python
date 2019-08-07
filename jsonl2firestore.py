@@ -16,15 +16,20 @@ from firebase_admin.firestore import ArrayUnion
 
 parser = argparse.ArgumentParser(description='Import formatted JSONL files into Google Firestore')
 parser.add_argument('jsonlfiles', metavar='COSC 1430.jsonl', type=str, nargs='+',
-                    help='A set of CSV files to source data from')
+                    help='A set of catalog JSONL files to source data from')
 parser.add_argument('--key', dest='key', default=None,
                     help='Path to Firebase Service account private key (see: README) ')
+parser.add_argument('--meta', dest='meta', default=None,
+                    help='Path to catalog.meta/meta.json')
 
 args = parser.parse_args()
 #print(args)
 
 if args.key == None or not os.path.isfile(args.key):
     print(f'{args.key} is not a file')
+    exit(1)
+if args.meta == None or not os.path.isfile(args.meta):
+    print(f'{args.kmetaey} is not a file')
     exit(1)
 
 def file_len(fname):
@@ -35,7 +40,6 @@ def file_len(fname):
 
 spinner = Halo(text=f'Estimating number of entries to be processed ...', spinner='dots')
 spinner.start()
-
 
 sum = 0
 for arg in args.jsonlfiles:
@@ -112,5 +116,24 @@ with tqdm(total=total_rows, unit="rows") as t:
                 j += 1
         i += 1
 
-exit(0)
+# Updating metadata
 
+spinner = Halo(text=f'Merging local catalog metadata with Firestore ...', spinner='dots')
+spinner.start()
+
+with open(args.meta, 'r') as f:
+    metaLocal = json.loads(f.read())
+    metaRef =  db.collection('catalog.meta').document('meta')
+    metaSnap = metaRef.get()
+    if not metaSnap.exists:
+        metaRef.set(metaLocal)
+    else:
+        metaSnap = metaSnap.to_dict()
+        # merging logic
+        if metaLocal["latestTerm"] > metaSnap["latestTerm"]:
+            metaRef.set({
+                "latestTerm":  metaLocal["latestTerm"]
+            }, merge=True)
+        # in the future: merge other values as needed
+
+spinner.succeed(text=f'Catalog metadata written')

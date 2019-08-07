@@ -54,15 +54,16 @@ optional arguments:
 
 ## jsonl2firestore.py
 ```
-usage: jsonl2firestore.py [-h] [--key KEY]
+usage: jsonl2firestore.py [-h] [--key KEY] [--meta META]
                           COSC 1430.jsonl [COSC 1430.jsonl ...]
 
 Import formatted JSONL files into Google Firestore
 
 positional arguments:
-  COSC 1430.jsonl  A set of CSV files to source data from
+  COSC 1430.jsonl  A set of catalog JSONL files to source data from
 
 optional arguments:
   -h, --help       show this help message and exit
   --key KEY        Path to Firebase Service account private key (see: README)
+  --meta META      Path to catalog.meta/meta.json
 ```
