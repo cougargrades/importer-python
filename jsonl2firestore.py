@@ -30,7 +30,7 @@ if args.key == None or not os.path.isfile(args.key):
     print(f'{args.key} is not a file')
     exit(1)
 if args.meta == None or not os.path.isfile(args.meta):
-    print(f'{args.kmetaey} is not a file')
+    print(f'{args.meta} is not a file')
     exit(1)
 
 def file_len(fname):
