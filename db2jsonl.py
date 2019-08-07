@@ -64,7 +64,7 @@ with open(os.path.join(args.folder, 'catalog.meta', 'meta.json'), 'w') as f:
     f.write(f'{json.dumps(catalog_meta)}')
 spinner.succeed()
 
-print('Writing collection `catalog/` ...')
+print('Writing collection `catalog/` the first time ...')
 
 # assign an outfile file
 for row in unique_courses:
@@ -93,6 +93,9 @@ with tqdm(total=total_rows, unit="rows") as t:
         with open(os.path.join(args.folder, 'catalog', row["outfile"]), 'w') as f:
             # write the header line
             f.write(f'{json.dumps(meta)}\n')
+
+            # hold individual sections in memory to be de-duped after the first traversal of `sections`
+            cache = []
             # for every section
             for sec in sections:
                 # write JSON in the new schema
@@ -109,18 +112,16 @@ with tqdm(total=total_rows, unit="rows") as t:
                     "Q": sec["Q"],
                     "instructors": []
                 }
-
                 # check for multiple instructors teaching this section
                 # https://stackoverflow.com/a/25373204
                 dups = list(filter(lambda s: s["TERM_CODE"] == sec["TERM_CODE"] and s["CLASS_SECTION"] == sec["CLASS_SECTION"], sections)) # array of complete sqlite dicts
                 # lamba function counts number of names in a provided list
                 countNames = lambda l, first, last: sum(1 if v["INSTR_FIRST_NAME"] == first and v["INSTR_LAST_NAME"] == last else 0 for v in l)
                 # de-dupe dups
-                for i in range(len(dups)-1,0,-1):
+                for j in range(len(dups)-1,0,-1):
                     # if this instructor has multiple records for some reason
-                    if(countNames(dups, dups[i]["INSTR_FIRST_NAME"], dups[i]["INSTR_LAST_NAME"]) > 1):
-                        dups.pop(i)
-
+                    if(countNames(dups, dups[j]["INSTR_FIRST_NAME"], dups[j]["INSTR_LAST_NAME"]) > 1):
+                        dups.pop(j)
                 # notifying the user
                 if(len(dups) > 1):
                     # https://stackoverflow.com/a/7271523
@@ -138,6 +139,17 @@ with tqdm(total=total_rows, unit="rows") as t:
                         "termGPA": d["PROF_AVG"],
                         "termSectionsTaught": d["PROF_COUNT"]
                     }]
-                f.write(f'''{json.dumps(data)}\n''')
-                t.update() # update progress bar
+                cache += [data] # append to cache
+            countSections = lambda l, term, secNum: sum(1 if v["term"] == term and v["sectionNumber"] == secNum else 0 for v in l)
+            # for every item in cache (traverse backwards because removing items)
+            for j in range(len(cache)-1,0,-1):
+                # if this exact section has multiple occurences
+                if(countSections(cache, cache[j]["term"], cache[j]["sectionNumber"]) > 1):
+                    # remove it
+                    cache.pop(j)
+            # for every item in cache
+            for p in cache:
+                # write to jsonl file
+                f.write(f'''{json.dumps(p)}\n''')
+                t.update()
         i += 1 # increment the course counter
