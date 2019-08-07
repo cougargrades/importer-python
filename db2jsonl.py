@@ -96,12 +96,10 @@ with tqdm(total=total_rows, unit="rows") as t:
             # for every section
             for sec in sections:
                 # write JSON in the new schema
-                f.write(f'''{json.dumps({
+                data = {
                     "term": sec["TERM_CODE"],
                     "termString": sec["TERM"],
                     "sectionNumber": sec["CLASS_SECTION"],
-                    "instructorFirstName": sec["INSTR_FIRST_NAME"],
-                    "instructorLastName": sec["INSTR_LAST_NAME"],
                     "semesterGPA": sec["AVG_GPA"],
                     "A": sec["A"],
                     "B": sec["B"],
@@ -109,11 +107,37 @@ with tqdm(total=total_rows, unit="rows") as t:
                     "D": sec["D"],
                     "F": sec["F"],
                     "Q": sec["Q"],
-                    "instructor": None,
-                    "instructorTermGPAmin": sec["PROF_MIN"],
-                    "instructorTermGPAmax": sec["PROF_MAX"],
-                    "instructorTermGPA": sec["PROF_AVG"],
-                    "instructorTermSectionsTaught": sec["PROF_COUNT"]
-                })}\n''')
+                    "instructors": []
+                }
+
+                # check for multiple instructors teaching this section
+                # https://stackoverflow.com/a/25373204
+                dups = list(filter(lambda s: s["TERM_CODE"] == sec["TERM_CODE"] and s["CLASS_SECTION"] == sec["CLASS_SECTION"], sections)) # array of complete sqlite dicts
+                # lamba function counts number of names in a provided list
+                countNames = lambda l, first, last: sum(1 if v["INSTR_FIRST_NAME"] == first and v["INSTR_LAST_NAME"] == last else 0 for v in l)
+                # de-dupe dups
+                for i in range(len(dups)-1,0,-1):
+                    # if this instructor has multiple records for some reason
+                    if(countNames(dups, dups[i]["INSTR_FIRST_NAME"], dups[i]["INSTR_LAST_NAME"]) > 1):
+                        dups.pop(i)
+
+                # notifying the user
+                if(len(dups) > 1):
+                    # https://stackoverflow.com/a/7271523
+                    sqlite_ids = [d["ID"] for d in dups]
+                    t.write(f'{row["DEPT"]} {row["CATALOG_NBR"]}#{sec["TERM_CODE"]}-{sec["CLASS_SECTION"]} has multiple instructors. These SQLite rows were merged: {sqlite_ids}')
+                #t.write(f'{courseRef.id}#{obj["term"]}-{obj["sectionNumber"]} already exists')
+                # for every instructor that taught this exact section
+                for d in dups:
+                    # append a new object to "instructors"
+                    data["instructors"] += [{
+                        "firstName": d["INSTR_FIRST_NAME"],
+                        "lastName": d["INSTR_LAST_NAME"],
+                        "termGPAmin": d["PROF_MIN"],
+                        "termGPAmax": d["PROF_MAX"],
+                        "termGPA": d["PROF_AVG"],
+                        "termSectionsTaught": d["PROF_COUNT"]
+                    }]
+                f.write(f'''{json.dumps(data)}\n''')
                 t.update() # update progress bar
         i += 1 # increment the course counter
