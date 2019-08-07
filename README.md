@@ -65,5 +65,5 @@ positional arguments:
 optional arguments:
   -h, --help       show this help message and exit
   --key KEY        Path to Firebase Service account private key (see: README)
-  --meta META      Path to catalog.meta/meta.json
+  --meta META      Path to catalog_meta/meta.json
 ```
