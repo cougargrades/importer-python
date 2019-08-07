@@ -30,6 +30,12 @@ else:
     if not os.path.isdir(args.folder) and not os.path.isfile(args.folder):
         # create the folder
         os.mkdir(args.folder)
+    if(not os.path.isdir(os.path.join(args.folder, 'catalog')) and not os.path.isfile(os.path.join(args.folder, 'catalog'))):
+        # create the subfolder
+        os.mkdir(os.path.join(args.folder, 'catalog'))
+    if(not os.path.isdir(os.path.join(args.folder, 'catalog.meta')) and not os.path.isfile(os.path.join(args.folder, 'catalog.meta'))):
+        # create the subfolder
+        os.mkdir(os.path.join(args.folder, 'catalog.meta'))
 
 # https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.row_factory
 def dict_factory(cursor, row):
@@ -48,6 +54,17 @@ c.execute('SELECT COUNT(*) FROM records;')
 total_rows = c.fetchone()["COUNT(*)"]
 
 print(f'{len(unique_courses)} distinct courses and {total_rows} total rows in {args.dbfile}')
+
+spinner = Halo(text='Writing collection `catalog.meta` ...', spinner='dots')
+spinner.start()
+c.execute('SELECT * FROM catalog_meta;')
+catalog_meta = c.fetchall() # [{'latestTerm': 201901}]
+catalog_meta = catalog_meta[0]
+with open(os.path.join(args.folder, 'catalog.meta', 'meta.json'), 'w') as f:
+    f.write(f'{json.dumps(catalog_meta)}')
+spinner.succeed()
+
+print('Writing collection `catalog/` ...')
 
 # assign an outfile file
 for row in unique_courses:
@@ -73,7 +90,7 @@ with tqdm(total=total_rows, unit="rows") as t:
             "sectionCount": 0 # leave at zero for automatic incrementation in Cloud Functions
         }
         # write the file
-        with open(os.path.join(args.folder, row["outfile"]), 'w') as f:
+        with open(os.path.join(args.folder, 'catalog', row["outfile"]), 'w') as f:
             # write the header line
             f.write(f'{json.dumps(meta)}\n')
             # for every section

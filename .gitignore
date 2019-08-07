@@ -8,6 +8,7 @@ foia/
 *.db
 *.sql
 *.jsonl
+*.json
 !sample.sql
 config.json
 
