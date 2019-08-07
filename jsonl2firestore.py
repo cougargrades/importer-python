@@ -21,7 +21,7 @@ parser.add_argument('jsonlfiles', metavar='COSC 1430.jsonl', type=str, nargs='+'
 parser.add_argument('--key', dest='key', default=None,
                     help='Path to Firebase Service account private key (see: README) ')
 parser.add_argument('--meta', dest='meta', default=None,
-                    help='Path to catalog.meta/meta.json')
+                    help='Path to catalog_meta/meta.json')
 
 args = parser.parse_args()
 #print(args)
@@ -152,7 +152,7 @@ spinner.start()
 
 with open(args.meta, 'r') as f:
     metaLocal = json.loads(f.read())
-    metaRef =  db.collection('catalog.meta').document('meta')
+    metaRef =  db.collection('catalog_meta').document('meta')
     metaSnap = metaRef.get()
     if not metaSnap.exists:
         metaRef.set(metaLocal)

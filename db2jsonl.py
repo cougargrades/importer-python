@@ -33,9 +33,9 @@ else:
     if(not os.path.isdir(os.path.join(args.folder, 'catalog')) and not os.path.isfile(os.path.join(args.folder, 'catalog'))):
         # create the subfolder
         os.mkdir(os.path.join(args.folder, 'catalog'))
-    if(not os.path.isdir(os.path.join(args.folder, 'catalog.meta')) and not os.path.isfile(os.path.join(args.folder, 'catalog.meta'))):
+    if(not os.path.isdir(os.path.join(args.folder, 'catalog_meta')) and not os.path.isfile(os.path.join(args.folder, 'catalog_meta'))):
         # create the subfolder
-        os.mkdir(os.path.join(args.folder, 'catalog.meta'))
+        os.mkdir(os.path.join(args.folder, 'catalog_meta'))
 
 # https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.row_factory
 def dict_factory(cursor, row):
@@ -55,12 +55,12 @@ total_rows = c.fetchone()["COUNT(*)"]
 
 print(f'{len(unique_courses)} distinct courses and {total_rows} total rows in {args.dbfile}')
 
-spinner = Halo(text='Writing collection `catalog.meta` ...', spinner='dots')
+spinner = Halo(text='Writing collection `catalog_meta` ...', spinner='dots')
 spinner.start()
 c.execute('SELECT * FROM catalog_meta;')
 catalog_meta = c.fetchall() # [{'latestTerm': 201901}]
 catalog_meta = catalog_meta[0]
-with open(os.path.join(args.folder, 'catalog.meta', 'meta.json'), 'w') as f:
+with open(os.path.join(args.folder, 'catalog_meta', 'meta.json'), 'w') as f:
     f.write(f'{json.dumps(catalog_meta)}')
 spinner.succeed()
 
