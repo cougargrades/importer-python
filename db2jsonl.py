@@ -158,3 +158,15 @@ with tqdm(total=total_rows, unit="rows") as t:
                 t.update()
         # increment the course counter
         i += 1
+
+def file_len(fname):
+    with open(fname) as f:
+        for i, l in enumerate(f):
+            pass
+    return i + 1
+
+finished_rows = 0
+for x in os.listdir(path=os.path.join(args.folder, 'catalog')):
+    finished_rows += file_len(os.path.join(args.folder, 'catalog', x)) # add line length (one row per line)
+    finished_rows -= 1 # subtract header
+print(f'To account for sections with multiple professors, {total_rows} records were de-duplicated into {finished_rows} ({round(((1 - (total_rows/finished_rows)) * 100), 1)}%).')
