@@ -6,6 +6,7 @@ import sys
 import json
 import argparse
 import time
+import copy
 from tqdm import tqdm
 from halo import Halo
 
@@ -54,8 +55,8 @@ cred = credentials.Certificate(args.key)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-catalog = db.collection(u'catalog')
-instructors = db.collection(u'instructors')
+catalog = db.collection(u'catalog_testing')
+instructors = db.collection(u'instructors_testing')
 
 print(f'📝 Writing {total_rows} records to Firestore.')
 
@@ -70,6 +71,7 @@ with tqdm(total=total_rows, unit="rows") as t:
             sectionsRef = {}
             courseRef = {}
             courseName = None
+            courseMeta = {}
             for line in f:
                 # load json line as Dict
                 obj = json.loads(line)
@@ -81,13 +83,14 @@ with tqdm(total=total_rows, unit="rows") as t:
                     courseRef = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}')
                     # save course name for other part of the code
                     courseName = f'{obj["department"]} {obj["catalogNumber"]}'
+                    # save course details for other part of the code
+                    courseMeta = copy.deepcopy(obj)
                     # if course doesn't exist, set it to the default things
                     if not courseRef.get().exists:
                         courseRef.set(obj)
                     sectionsRef = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}').collection('sections')
                 else:
                     # check for existence of section already (https://stackoverflow.com/a/3114640)
-                    #t.write(f'{sectionsRef.parent.path} -> {sections.id}')
                     secQuery = sectionsRef.where('term','==',obj["term"]).where('sectionNumber','==',obj["sectionNumber"])
                     if any(True for _ in secQuery.stream()):
                         t.write(f'{courseRef.id}#{obj["term"]}-{obj["sectionNumber"]} already exists')
@@ -111,6 +114,9 @@ with tqdm(total=total_rows, unit="rows") as t:
                                 "lastName": item["lastName"],
                                 "courses": [ courseRef ],
                                 "sections": [],
+                                "departments": { # initialize the `departments` Map if this instructor does not yet exist
+                                    f'{courseMeta["department"]}': 1
+                                 },
                                 "courses_count": 1,
                                 "sections_count": 0
                             })
@@ -122,7 +128,8 @@ with tqdm(total=total_rows, unit="rows") as t:
                                 # add it and increment the course count with the snapshot we already had to fetch
                                 instructorRef.update({
                                     "courses": ArrayUnion([courseRef]),
-                                    "courses_count": Increment(1)
+                                    "courses_count": Increment(1), # if the `departments` Map does not yet have a property for this department, set it to 1. if it already exists, increment it.
+                                    f'departments.{courseMeta["department"]}': 1 if instructorSnap.to_dict()["departments"][f'{courseMeta["department"]}'] == None else Increment(1)
                                 })
                     # add section to course, save reference to document as a variable
                     secRef = sectionsRef.add(obj)[1]

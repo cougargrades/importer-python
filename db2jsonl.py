@@ -84,9 +84,14 @@ with tqdm(total=total_rows, unit="rows") as t:
             "department": row["DEPT"],
             "catalogNumber": row["CATALOG_NBR"],
             "description": sections[0]["COURSE_DESCR"],
-            "cumulativeGPAmin": None,
-            "cumulativeGPAmax": None,
-            "cumulativeGPA": None,
+            "GPA": {
+                "minimum": None,
+                "maximum": None,
+                "average": None,
+                "median": None,
+                "range": None,
+                "standardDeviation": None
+            },
             "sectionCount": 0 # leave at zero for automatic incrementation in Cloud Functions
         }
         # write the file
