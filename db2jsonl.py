@@ -6,6 +6,8 @@ import sys
 import sqlite3
 import json
 import argparse
+import copy
+import statistics
 from tqdm import tqdm
 from halo import Halo
 
@@ -36,6 +38,50 @@ else:
     if(not os.path.isdir(os.path.join(args.folder, 'catalog_meta')) and not os.path.isfile(os.path.join(args.folder, 'catalog_meta'))):
         # create the subfolder
         os.mkdir(os.path.join(args.folder, 'catalog_meta'))
+    if(not os.path.isdir(os.path.join(args.folder, 'instructors')) and not os.path.isfile(os.path.join(args.folder, 'instructors'))):
+        # create the subfolder
+        os.mkdir(os.path.join(args.folder, 'instructors'))
+
+
+print('''
+TODO
+  ◯ Write `catalog` collection
+  ◯ Write `instructors` collection
+  ◯ Compute statistics for `instructors` collection
+  ◯ Compute statistics for `catalog` collection
+''')
+
+def file_len(fname):
+    with open(fname) as f:
+        for i, l in enumerate(f):
+            pass
+    return i + 1
+
+def update_instructor(name, data, merge=False):
+    post = {}
+    if os.path.isfile(os.path.join(args.folder, 'instructors', name)):
+        with open(os.path.join(args.folder, 'instructors', name), 'r') as f:
+            pre = json.loads(f.read())
+            post = copy.deepcopy(pre)
+            for key, value in data.items():
+                # when merging...
+                if merge:
+                    # if a value is numeric and existed in the previous file
+                    if str(value).isnumeric() and pre[key] != None:
+                        # treat the provided value as a delta
+                        post[key] += value
+                post[key] = value
+    else:
+        post = copy.deepcopy(data)
+    with open(os.path.join(args.folder, 'instructors', name), 'w') as f:
+        f.write(f'''{json.dumps(post)}\n''')
+
+def get_instructor(name):
+    if os.path.isfile(os.path.join(args.folder, 'instructors', name)):
+        with open(os.path.join(args.folder, 'instructors', name), 'r') as f:
+            return json.loads(f.read())
+    else:
+        return None
 
 # https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.row_factory
 def dict_factory(cursor, row):
@@ -43,6 +89,9 @@ def dict_factory(cursor, row):
     for idx, col in enumerate(cursor.description):
         d[col[0]] = row[idx]
     return d
+
+def statrange(x):
+    return x[len(x)-1] - x[0]
 
 # setup sqlite
 conn = sqlite3.connect(args.dbfile)
@@ -159,14 +208,96 @@ with tqdm(total=total_rows, unit="rows") as t:
         # increment the course counter
         i += 1
 
-def file_len(fname):
-    with open(fname) as f:
-        for i, l in enumerate(f):
-            pass
-    return i + 1
-
 finished_rows = 0
 for x in os.listdir(path=os.path.join(args.folder, 'catalog')):
     finished_rows += file_len(os.path.join(args.folder, 'catalog', x)) # add line length (one row per line)
     finished_rows -= 1 # subtract header
 print(f'To account for sections with multiple professors, {total_rows} records were de-duplicated into {finished_rows} ({round(((1 - (total_rows/finished_rows)) * 100), 1)}%).')
+
+spinner = Halo(text=f'Estimating number of entries to be processed ...', spinner='dots')
+spinner.start()
+
+# lists all files in FOLDER/catalog/ and prepends their path so operations will resolve
+jsonlfiles = [os.path.join(args.folder, 'catalog', x) for x in os.listdir(path=os.path.join(args.folder, 'catalog'))]
+jsonlfiles.sort()
+
+sum = 0
+for arg in jsonlfiles:
+    sum += file_len(arg) # add line length (one row per line)
+    sum -= 1 # subtract header
+spinner.succeed(text=f'{sum} sections were counted in the provided .jsonl files.')
+total_rows = sum
+
+print(f'🔎 Inspecting {total_rows} records to enumerate instructors.')
+
+with tqdm(total=total_rows, unit="rows") as t:
+    i = 1
+    # for every file (each file is a course)
+    for arg in jsonlfiles:
+        # open file
+        with open(arg, 'r') as f:
+            j = 0
+            # declare variable
+            courseName = None
+            courseMeta = {}
+            for line in f.readlines():
+                # load json line as Dict
+                obj = json.loads(line)
+                if j == 0:
+                    # block for creating course document
+                    # update progress bar
+                    t.set_description(f'[{i}/{len(jsonlfiles)}] {obj["department"]} {obj["catalogNumber"]}')
+                    courseName = f'{obj["department"]} {obj["catalogNumber"]}'
+                    # save course details for other part of the code
+                    courseMeta = copy.deepcopy(obj)
+                else:
+                    obj["instructors"] = []
+                    # for every intructor in the file
+                    for item in obj["instructorNames"]:
+                        update_instructor(f'{item["lastName"]}, {item["firstName"]}.json', {
+                            "firstName": item["firstName"],
+                            "lastName": item["lastName"],
+                            "GPA": {
+                                "minimum": None,
+                                "maximum": None,
+                                "average": None,
+                                "median": None,
+                                "range": None,
+                                "standardDeviation": None
+                            }
+                        })
+                    t.update()
+                j += 1
+        i += 1
+
+# lists all files in FOLDER/instructors/
+spinner = Halo(text=f'Listing and sorting files in {os.path.join(args.folder, "instructors")}', spinner='dots')
+spinner.start()
+instructors = os.listdir(path=os.path.join(args.folder, 'instructors'))
+instructors.sort()
+spinner.succeed()
+
+print(f'📊 Computing statistics for {len(instructors)} instructors.')
+
+i = 1
+for item in tqdm(iterable=instructors, total=len(instructors), unit="files"):
+    t.set_description(f'[{i}/{len(instructors)}] {item}')
+    pre = get_instructor(item)
+    c.execute('SELECT * FROM records WHERE INSTR_LAST_NAME=? AND INSTR_FIRST_NAME=?', (pre["lastName"], pre["firstName"]))
+    sections = c.fetchall()
+    # create an array of floats
+    grades = [ x["PROF_AVG"] for x in sections ]
+    # filter the None values
+    grades = list(filter(lambda x: x != None, grades))
+    if len(grades) > 0:
+        update_instructor(item, {
+            "GPA": {
+                "minimum": min(grades),
+                "maximum": max(grades),
+                "average": statistics.mean(grades),
+                "median": statistics.median(grades),
+                "range": statrange(grades),
+                "standardDeviation": statistics.stdev(grades) if len(grades) > 1 else 0
+            }
+        })
+    i += 1
