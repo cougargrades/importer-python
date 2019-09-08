@@ -70,7 +70,8 @@ def update_instructor(name, data, merge=False):
                     if str(value).isnumeric() and pre[key] != None:
                         # treat the provided value as a delta
                         post[key] += value
-                post[key] = value
+                else:
+                    post[key] = value
     else:
         post = copy.deepcopy(data)
     with open(os.path.join(args.folder, 'instructors', name), 'w') as f:
@@ -83,6 +84,30 @@ def get_instructor(name):
     else:
         return None
 
+def update_course(name, data, merge=False):
+    post = {}
+    lines = []
+    if os.path.isfile(os.path.join(args.folder, 'catalog', name)):
+        with open(os.path.join(args.folder, 'catalog', name), 'r') as f:
+            lines = f.readlines()
+            pre = json.loads(lines[0])
+            post = copy.deepcopy(pre)
+            for key, value in data.items():
+                post[key] = value
+    else:
+        post = copy.deepcopy(data)
+    with open(os.path.join(args.folder, 'catalog', name), 'w') as f:
+        f.write(f'''{json.dumps(post)}\n''')
+        for i in range(1,len(lines)):
+            f.write(f'''{lines[i]}\n''')
+
+def get_course(name):
+    if os.path.isfile(os.path.join(args.folder, 'catalog', name)):
+        with open(os.path.join(args.folder, 'catalog', name), 'r') as f:
+            return json.loads(f.readlines()[0])
+    else:
+        return None
+
 # https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.row_factory
 def dict_factory(cursor, row):
     d = {}
@@ -91,7 +116,7 @@ def dict_factory(cursor, row):
     return d
 
 def statrange(x):
-    return x[len(x)-1] - x[0]
+    return max(x) - min(x)
 
 # setup sqlite
 conn = sqlite3.connect(args.dbfile)
@@ -133,15 +158,13 @@ with tqdm(total=total_rows, unit="rows") as t:
             "department": row["DEPT"],
             "catalogNumber": row["CATALOG_NBR"],
             "description": sections[0]["COURSE_DESCR"],
-            "GPA": {
-                "minimum": None,
-                "maximum": None,
-                "average": None,
-                "median": None,
-                "range": None,
-                "standardDeviation": None
-            },
-            "sectionCount": 0 # leave at zero for automatic incrementation in Cloud Functions
+            "GPA.minimum": None,
+            "GPA.maximum": None,
+            "GPA.average": None,
+            "GPA.median": None,
+            "GPA.range": None,
+            "GPA.standardDeviation": None,
+            "sectionCount": 0
         }
         # write the file
         with open(os.path.join(args.folder, 'catalog', row["outfile"]), 'w') as f:
@@ -257,14 +280,12 @@ with tqdm(total=total_rows, unit="rows") as t:
                         update_instructor(f'{item["lastName"]}, {item["firstName"]}.json', {
                             "firstName": item["firstName"],
                             "lastName": item["lastName"],
-                            "GPA": {
-                                "minimum": None,
-                                "maximum": None,
-                                "average": None,
-                                "median": None,
-                                "range": None,
-                                "standardDeviation": None
-                            }
+                            "GPA.minimum": None,
+                            "GPA.maximum": None,
+                            "GPA.average": None,
+                            "GPA.median": None,
+                            "GPA.range": None,
+                            "GPA.standardDeviation": None
                         })
                     t.update()
                 j += 1
@@ -283,7 +304,7 @@ i = 1
 for item in tqdm(iterable=instructors, total=len(instructors), unit="files"):
     t.set_description(f'[{i}/{len(instructors)}] {item}')
     pre = get_instructor(item)
-    c.execute('SELECT * FROM records WHERE INSTR_LAST_NAME=? AND INSTR_FIRST_NAME=?', (pre["lastName"], pre["firstName"]))
+    c.execute('SELECT PROF_AVG FROM records WHERE INSTR_LAST_NAME=? AND INSTR_FIRST_NAME=?', (pre["lastName"], pre["firstName"]))
     sections = c.fetchall()
     # create an array of floats
     grades = [ x["PROF_AVG"] for x in sections ]
@@ -291,13 +312,42 @@ for item in tqdm(iterable=instructors, total=len(instructors), unit="files"):
     grades = list(filter(lambda x: x != None, grades))
     if len(grades) > 0:
         update_instructor(item, {
-            "GPA": {
-                "minimum": min(grades),
-                "maximum": max(grades),
-                "average": statistics.mean(grades),
-                "median": statistics.median(grades),
-                "range": statrange(grades),
-                "standardDeviation": statistics.stdev(grades) if len(grades) > 1 else 0
-            }
+            "GPA.minimum": min(grades),
+            "GPA.maximum": max(grades),
+            "GPA.average": statistics.mean(grades),
+            "GPA.median": statistics.median(grades),
+            "GPA.range": statrange(grades),
+            "GPA.standardDeviation": statistics.stdev(grades) if len(grades) > 1 else 0
+        })
+    i += 1
+
+# lists all files in FOLDER/instructors/
+spinner = Halo(text=f'Listing and sorting files in {os.path.join(args.folder, "catalog")}', spinner='dots')
+spinner.start()
+catalog = os.listdir(path=os.path.join(args.folder, 'catalog'))
+catalog.sort()
+spinner.succeed()
+
+print(f'📊 Computing statistics for {len(catalog)} courses.')
+
+i = 1
+for item in tqdm(iterable=catalog, total=len(catalog), unit="files"):
+    t.set_description(f'[{i}/{len(catalog)}] {item}')
+    pre = get_course(item)
+    c.execute('SELECT PROF_AVG FROM records WHERE DEPT=? AND CATALOG_NBR=?', (pre["department"], pre["catalogNumber"]))
+    sections = c.fetchall()
+    # create an array of floats
+    grades = [ x["PROF_AVG"] for x in sections ]
+    # filter the None values
+    grades = list(filter(lambda x: x != None, grades))
+    #print(grades)
+    if len(grades) > 0:
+        update_course(item, {
+            "GPA.minimum": min(grades),
+            "GPA.maximum": max(grades),
+            "GPA.average": statistics.mean(grades),
+            "GPA.median": statistics.median(grades),
+            "GPA.range": statrange(grades),
+            "GPA.standardDeviation": statistics.stdev(grades) if len(grades) > 1 else 0
         })
     i += 1
