@@ -17,22 +17,34 @@ from firebase_admin.firestore import ArrayUnion
 from firebase_admin.firestore import Increment
 
 parser = argparse.ArgumentParser(description='Import formatted JSONL files into Google Firestore')
-parser.add_argument('jsonlfiles', metavar='COSC 1430.jsonl', type=str, nargs='+',
-                    help='A set of catalog JSONL files to source data from')
+parser.add_argument('folder', metavar='records.db', type=str,
+                    help='Folder where .jsonl files are stored.')
 parser.add_argument('--key', dest='key', default=None,
                     help='Path to Firebase Service account private key (see: README) ')
-parser.add_argument('--meta', dest='meta', default=None,
-                    help='Path to catalog_meta/meta.json')
 
 args = parser.parse_args()
-#print(args)
 
 if args.key == None or not os.path.isfile(args.key):
     print(f'{args.key} is not a file')
     exit(1)
-if args.meta == None or not os.path.isfile(args.meta):
-    print(f'{args.meta} is not a file')
+
+if args.folder == None:
+    print(f'[folder] must be a folder name.')
     exit(1)
+else:
+    # if not a directory and not an existing file
+    if not os.path.isdir(args.folder) and not os.path.isfile(args.folder):
+        # create the folder
+        print(f'A folder was not found at: {args.folder}')
+    if(not os.path.isdir(os.path.join(args.folder, 'catalog')) and not os.path.isfile(os.path.join(args.folder, 'catalog'))):
+        # create the subfolder
+        print(f'A `catalog` folder was not found under: {args.folder}')
+    if(not os.path.isdir(os.path.join(args.folder, 'catalog_meta')) and not os.path.isfile(os.path.join(args.folder, 'catalog_meta'))):
+        # create the subfolder
+        print(f'A `catalog_meta` folder was not found under: {args.folder}')
+    if(not os.path.isdir(os.path.join(args.folder, 'instructors')) and not os.path.isfile(os.path.join(args.folder, 'instructors'))):
+        # create the subfolder
+        print(f'An `instructors` folder was not found under: {args.folder}')
 
 def file_len(fname):
     with open(fname) as f:
@@ -40,11 +52,22 @@ def file_len(fname):
             pass
     return i + 1
 
+def get_instructor(name):
+    if os.path.isfile(os.path.join(args.folder, 'instructors', name)):
+        with open(os.path.join(args.folder, 'instructors', name), 'r') as f:
+            return json.loads(f.read())
+    else:
+        return None
+
 spinner = Halo(text=f'Estimating number of entries to be processed ...', spinner='dots')
 spinner.start()
 
+# lists all files in FOLDER/catalog/ and prepends their path so operations will resolve
+jsonlfiles = [os.path.join(args.folder, 'catalog', x) for x in os.listdir(path=os.path.join(args.folder, 'catalog'))]
+jsonlfiles.sort()
+
 sum = 0
-for arg in args.jsonlfiles:
+for arg in jsonlfiles:
     sum += file_len(arg) # add line length (one row per line)
     sum -= 1 # subtract header
 spinner.succeed(text=f'{sum} entries were counted in the provided .jsonl files')
@@ -55,15 +78,15 @@ cred = credentials.Certificate(args.key)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-catalog = db.collection(u'catalog')
-instructors = db.collection(u'instructors')
+catalog = db.collection(u'catalog_test')
+instructors = db.collection(u'instructors_test')
 
-print(f'📝 Writing {total_rows} records to Firestore.')
+print(f'📚 Writing {total_rows} courses to Firestore. Instructors will be populated.')
 
 with tqdm(total=total_rows, unit="rows") as t:
     i = 1
     # for every file (each file is a course)
-    for arg in args.jsonlfiles:
+    for arg in jsonlfiles:
         # open file
         with open(arg, 'r') as f:
             j = 0
@@ -78,7 +101,7 @@ with tqdm(total=total_rows, unit="rows") as t:
                 if j == 0:
                     # block for creating course document
                     # update progress bar
-                    t.set_description(f'[{i}/{len(args.jsonlfiles)}] {obj["department"]} {obj["catalogNumber"]}')
+                    t.set_description(f'[{i}/{len(jsonlfiles)}] {obj["department"]} {obj["catalogNumber"]}')
                     # get course reference
                     courseRef = catalog.document(f'{obj["department"]} {obj["catalogNumber"]}')
                     # save course name for other part of the code
@@ -108,7 +131,10 @@ with tqdm(total=total_rows, unit="rows") as t:
                         # get the data for this instructor
                         instructorSnap = instructorRef.get()
                         if not instructorSnap.exists:
+                            # grab statistics for this instructor
+                            prof = get_instructor(f'{item["lastName"]}, {item["firstName"]}.json')
                             # if he doesn't yet exist, create him
+                            # include pre-computed statistics data
                             instructorRef.set({
                                 "firstName": item["firstName"],
                                 "lastName": item["lastName"],
@@ -118,7 +144,15 @@ with tqdm(total=total_rows, unit="rows") as t:
                                     f'{courseMeta["department"]}': 1
                                  },
                                 "courses_count": 1,
-                                "sections_count": 0
+                                "sections_count": 0,
+                                "GPA": {
+                                    "minimum": prof["GPA.minimum"],
+                                    "maximum": prof["GPA.maximum"],
+                                    "average": prof["GPA.average"],
+                                    "median": prof["GPA.median"],
+                                    "range": prof["GPA.range"],
+                                    "standardDeviation": prof["GPA.standardDeviation"]
+                                }
                             })
                         else:
                             # [DocumentReference, ...] => ["COSC 1430", ...]
@@ -140,16 +174,19 @@ with tqdm(total=total_rows, unit="rows") as t:
                             "sections": ArrayUnion([secRef]),
                             "sections_count": Increment(1)
                         })
+                    # now that the section has been completely written, update the section counter for this course
+                    courseRef.update({
+                        "sectionCount": Increment(1)
+                    })
                     t.update()
                 j += 1
         i += 1
-
+    
 # Updating metadata
-
 spinner = Halo(text=f'Merging local catalog metadata with Firestore ...', spinner='dots')
 spinner.start()
 
-with open(args.meta, 'r') as f:
+with open(os.path.join(args.folder, 'catalog_meta', 'meta.json'), 'r') as f:
     metaLocal = json.loads(f.read())
     metaRef =  db.collection('catalog_meta').document('meta')
     metaSnap = metaRef.get()

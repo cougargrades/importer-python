@@ -158,12 +158,14 @@ with tqdm(total=total_rows, unit="rows") as t:
             "department": row["DEPT"],
             "catalogNumber": row["CATALOG_NBR"],
             "description": sections[0]["COURSE_DESCR"],
-            "GPA.minimum": None,
-            "GPA.maximum": None,
-            "GPA.average": None,
-            "GPA.median": None,
-            "GPA.range": None,
-            "GPA.standardDeviation": None,
+            "GPA": {
+                "minimum": None,
+                "maximum": None,
+                "average": None,
+                "median": None,
+                "range": None,
+                "standardDeviation": None,
+            },
             "sectionCount": 0
         }
         # write the file
@@ -343,11 +345,13 @@ for item in tqdm(iterable=catalog, total=len(catalog), unit="files"):
     #print(grades)
     if len(grades) > 0:
         update_course(item, {
-            "GPA.minimum": min(grades),
-            "GPA.maximum": max(grades),
-            "GPA.average": statistics.mean(grades),
-            "GPA.median": statistics.median(grades),
-            "GPA.range": statrange(grades),
-            "GPA.standardDeviation": statistics.stdev(grades) if len(grades) > 1 else 0
+            "GPA": {
+                "minimum": min(grades),
+                "maximum": max(grades),
+                "average": statistics.mean(grades),
+                "median": statistics.median(grades),
+                "range": statrange(grades),
+                "standardDeviation": statistics.stdev(grades) if len(grades) > 1 else 0
+            }
         })
     i += 1
