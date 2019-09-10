@@ -99,7 +99,7 @@ def update_course(name, data, merge=False):
     with open(os.path.join(args.folder, 'catalog', name), 'w') as f:
         f.write(f'''{json.dumps(post)}\n''')
         for i in range(1,len(lines)):
-            f.write(f'''{lines[i]}\n''')
+            f.write(f'''{lines[i]}''')
 
 def get_course(name):
     if os.path.isfile(os.path.join(args.folder, 'catalog', name)):
