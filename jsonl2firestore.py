@@ -78,8 +78,8 @@ cred = credentials.Certificate(args.key)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-catalog = db.collection(u'catalog_test')
-instructors = db.collection(u'instructors_test')
+catalog = db.collection(u'catalog')
+instructors = db.collection(u'instructors')
 
 print(f'📚 Writing {total_rows} courses to Firestore. Instructors will be populated.')
 
@@ -159,11 +159,15 @@ with tqdm(total=total_rows, unit="rows") as t:
                             my_courses = [item.id for item in instructorSnap.to_dict()["courses"]]
                             # if the course i'm operating on isn't in listed as a course for this instructor
                             if(courseName not in my_courses):
+                                #print(f'courseMeta: {courseMeta}')
+                                #print(f'instructorSnap.to_dict() : {instructorSnap.to_dict()}')
                                 # add it and increment the course count with the snapshot we already had to fetch
                                 instructorRef.update({
                                     "courses": ArrayUnion([courseRef]),
                                     "courses_count": Increment(1), # if the `departments` Map does not yet have a property for this department, set it to 1. if it already exists, increment it.
-                                    f'departments.{courseMeta["department"]}': 1 if instructorSnap.to_dict()["departments"][f'{courseMeta["department"]}'] == None else Increment(1)
+                                    f'departments': {
+                                        f'{courseMeta["department"]}': 1 if "departments" in instructorSnap.to_dict().keys() and f'{courseMeta["department"]}' not in instructorSnap.to_dict()["departments"].keys() else Increment(1)
+                                    }
                                 })
                     # add section to course, save reference to document as a variable
                     secRef = sectionsRef.add(obj)[1]
