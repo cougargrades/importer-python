@@ -78,8 +78,8 @@ cred = credentials.Certificate(args.key)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-catalog = db.collection(u'catalog_test')
-instructors = db.collection(u'instructors_test')
+catalog = db.collection(u'catalog')
+instructors = db.collection(u'instructors')
 
 print(f'📚 Writing {total_rows} courses to Firestore. Instructors will be populated.')
 
