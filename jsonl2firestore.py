@@ -78,8 +78,8 @@ cred = credentials.Certificate(args.key)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-catalog = db.collection(u'catalog')
-instructors = db.collection(u'instructors')
+catalog = db.collection(u'catalog_test')
+instructors = db.collection(u'instructors_test')
 
 print(f'📚 Writing {total_rows} courses to Firestore. Instructors will be populated.')
 
@@ -138,7 +138,9 @@ with tqdm(total=total_rows, unit="rows") as t:
                             instructorRef.set({
                                 "firstName": item["firstName"],
                                 "lastName": item["lastName"],
+                                "fullName": prof["fullName"],
                                 "courses": [ courseRef ],
+                                "keywords": prof["keywords"],
                                 "sections": [],
                                 "departments": { # initialize the `departments` Map if this instructor does not yet exist
                                     f'{courseMeta["department"]}': 1
