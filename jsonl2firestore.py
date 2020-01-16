@@ -161,15 +161,13 @@ with tqdm(total=total_rows, unit="rows") as t:
                             my_courses = [item.id for item in instructorSnap.to_dict()["courses"]]
                             # if the course i'm operating on isn't in listed as a course for this instructor
                             if(courseName not in my_courses):
-                                #print(f'courseMeta: {courseMeta}')
-                                #print(f'instructorSnap.to_dict() : {instructorSnap.to_dict()}')
                                 # add it and increment the course count with the snapshot we already had to fetch
+                                # use the . (dot) syntax when running DocumentReference.update() because otherwise the "departments" field will be completely overriden
+                                # see: https://googleapis.dev/python/firestore/latest/document.html#google.cloud.firestore_v1.document.DocumentReference.update
                                 instructorRef.update({
                                     "courses": ArrayUnion([courseRef]),
                                     "courses_count": Increment(1), # if the `departments` Map does not yet have a property for this department, set it to 1. if it already exists, increment it.
-                                    f'departments': {
-                                        f'{courseMeta["department"]}': 1 if "departments" in instructorSnap.to_dict().keys() and f'{courseMeta["department"]}' not in instructorSnap.to_dict()["departments"].keys() else Increment(1)
-                                    }
+                                    f'departments.{courseMeta["department"]}': 1 if "departments" in instructorSnap.to_dict().keys() and f'{courseMeta["department"]}' not in instructorSnap.to_dict()["departments"].keys() else Increment(1)
                                 })
                     # add section to course, save reference to document as a variable
                     secRef = sectionsRef.add(obj)[1]
